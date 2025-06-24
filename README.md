@@ -1,6 +1,6 @@
 ## Overview
 
-ReviewBot is a tool designed to automate code review processes, helping teams maintain code quality and streamline collaboration.
+🚀 ReviewBot is a tool designed to automate code review processes, helping teams maintain code quality and streamline collaboration.
 
 ## Upcoming Features
 

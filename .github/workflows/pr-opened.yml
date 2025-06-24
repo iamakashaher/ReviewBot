@@ -17,7 +17,7 @@ jobs:
               issue_number: context.payload.pull_request.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `👋 Thanks for your PR, @${context.payload.pull_request.user.login}!`
+              body: `**ReviewBot 🤖** says: Thanks @${context.payload.pull_request.user.login} for your PR! We'll review it soon.`
             });
 
       - name: Add labels
