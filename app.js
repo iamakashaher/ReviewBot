@@ -1,1 +1,1 @@
-console.log('Hello, world! This is a sample Node.js program for reviewBot.');
+console.log('Hello, world! This is a sample Node.js program for reviewBot!');

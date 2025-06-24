@@ -34494,8 +34494,8 @@ const fetch = __nccwpck_require__(9496);
 
 async function run() {
   try {
-    const token = core.getInput('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');
-    const openaiApiKey = core.getInput('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');
+    const token = core.getInput('github-token');
+    const openaiApiKey = core.getInput('openai-api-key');
 
     const octokit = github.getOctokit(token);
     const context = github.context;
