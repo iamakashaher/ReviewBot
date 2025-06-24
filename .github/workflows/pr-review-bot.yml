@@ -31,3 +31,10 @@ jobs:
               repo: context.repo.repo,
               labels: ['needs-review']
             });
+
+      # 🔽 Add this step to invoke your AI PR Reviewer
+      - name: Run AI PR Reviewer
+        uses: ./.github/actions/ai-pr-reviewer
+        with:
+          github-token: ${{ secrets.ReviewBotToken }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
