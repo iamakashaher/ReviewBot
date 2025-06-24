@@ -34492,77 +34492,18 @@ const core = __nccwpck_require__(9325);
 const github = __nccwpck_require__(4129);
 const fetch = __nccwpck_require__(9496);
 
-async function callOpenAI(openaiApiKey, diff) {
-  const maxRetries = 3;
-  let attempt = 0;
-
-  while (attempt < maxRetries) {
-    attempt++;
-    try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiApiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'gpt-3.5-turbo',  // fallback-safe model
-          messages: [
-            { role: 'system', content: 'You are a senior software engineer reviewing pull requests.' },
-            { role: 'user', content: `Review this code diff:\n\n${diff.slice(0, 3000)}` } // limit size
-          ],
-          temperature: 0.2
-        })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`OpenAI API Error (${response.status}): ${errorText}`);
-      }
-
-      const result = await response.json();
-
-      if (
-        !result.choices ||
-        !Array.isArray(result.choices) ||
-        result.choices.length === 0 ||
-        !result.choices[0].message
-      ) {
-        console.warn("Invalid OpenAI response:", JSON.stringify(result));
-        throw new Error("Invalid OpenAI response structure.");
-      }
-
-      return result.choices[0].message.content;
-    } catch (err) {
-      console.warn(`Attempt ${attempt} failed: ${err.message}`);
-      if (attempt === maxRetries) throw err;
-      await new Promise(res => setTimeout(res, 1000 * attempt)); // exponential backoff
-    }
-  }
-}
-
 async function run() {
   try {
-    const token = core.getInput('github-token', { required: true });
-    const openaiApiKey = core.getInput('openai-api-key', { required: true });
-
-    if (!token || !openaiApiKey) {
-      throw new Error('Missing GitHub or OpenAI API key.');
-    }
+    const token = core.getInput('github-token');
+    const openaiApiKey = core.getInput('openai-api-key');
 
     const octokit = github.getOctokit(token);
     const context = github.context;
 
-    if (!context.payload.pull_request) {
-      throw new Error('This action must be run on pull_request events only.');
-    }
-
-    const pullNumber = context.payload.pull_request.number;
-
     const { data: files } = await octokit.rest.pulls.listFiles({
       owner: context.repo.owner,
       repo: context.repo.repo,
-      pull_number: pullNumber,
+      pull_number: context.payload.pull_request.number,
     });
 
     for (const file of files) {
@@ -34570,20 +34511,34 @@ async function run() {
 
       const diff = file.patch;
 
-      console.log(`Reviewing file: ${file.filename}`);
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: 'You are a senior software engineer reviewing pull requests.' },
+            { role: 'user', content: `Review this code diff:\n\n${diff}` }
+          ],
+          temperature: 0.2
+        })
+      });
 
-      const reviewSuggestions = await callOpenAI(openaiApiKey, diff);
+      const result = await response.json();
+      const reviewSuggestions = result.choices[0].message.content;
 
       await octokit.rest.issues.createComment({
-        issue_number: pullNumber,
+        issue_number: context.payload.pull_request.number,
         owner: context.repo.owner,
         repo: context.repo.repo,
-        body: `**ReviewBot 🤖 Suggestions for \`${file.filename}\`**:\n\n${reviewSuggestions}`
+        body: `**ReviewBot 🤖 AI Suggestions for ${file.filename}**:\n\n${reviewSuggestions}`
       });
     }
   } catch (error) {
-    console.error('Error stack:', error.stack);
-    core.setFailed(error.message);
+    core.setFailed(error.stack);
   }
 }
 
