@@ -34510,6 +34510,8 @@ async function run() {
       if (!file.patch || !file.filename.endsWith(".js")) continue;
 
       const diff = file.patch;
+      
+      console.log("🚀 ~ run ~ diff:", diff)
 
       const response = await fetch(
         "https://api.openai.com/v1/chat/completions",
