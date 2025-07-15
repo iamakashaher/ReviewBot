@@ -4,6 +4,12 @@ on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
 
+# 👇 Permissions block added here
+permissions:
+  pull-requests: write
+  issues: write
+  contents: read  # Optional but generally safe to include
+
 jobs:
   pr_commenter:
     runs-on: ubuntu-latest
