@@ -45,27 +45,37 @@ async function runAssistantWithPolling(openaiApiKey, threadId) {
 
   const run = await runRes.json();
 
+  const runId = run.id;
   const maxAttempts = 30;
   let attempts = 0;
 
   while (attempts < maxAttempts) {
-    const statusRes = await fetch(`${OPENAI_API_URL}/threads/${threadId}/runs/${run.id}`, {
+    const res = await fetch(`${OPENAI_API_URL}/threads/${threadId}/runs/${runId}`, {
       headers: {
         Authorization: `Bearer ${openaiApiKey}`,
       },
     });
 
-    const runStatus = await statusRes.json();
+    const data = await res.json();
+    const status = data.status;
 
-    if (runStatus.status === "completed") {
-      return runStatus;
+    console.log(`Run status: ${status}`);
+
+    if (status === "completed") {
+      return data;
     }
 
-    if (["failed", "cancelled", "expired"].includes(runStatus.status)) {
-      throw new Error(`Assistant run failed with status: ${runStatus.status}`);
+    if (["failed", "cancelled", "expired"].includes(status)) {
+      throw new Error(`Run failed with status: ${status}`);
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 3000)); // 3s delay
+    if (status === "requires_action") {
+      throw new Error(
+        "The assistant requires action (likely a tool call). This script doesn't support tool use."
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 3000));
     attempts++;
   }
 
@@ -102,7 +112,6 @@ async function run() {
       if (!file.patch || !file.filename.endsWith(".js")) continue;
 
       const diff = file.patch;
-      const parsed = parseDiff(`diff --git a/${file.filename} b/${file.filename}\n${diff}`);
 
       // Prepare thread
       const threadId = await createThread(openaiApiKey);
