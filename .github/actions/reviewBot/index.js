@@ -81,8 +81,19 @@ async function run() {
         headers: { Authorization: `Bearer ${openaiApiKey}` },
       });
 
+      if (!messagesRes.ok) {
+        const errorText = await messagesRes.text();
+        throw new Error(`Failed to fetch messages: ${messagesRes.status} ${messagesRes.statusText}\n${errorText}`);
+      }
+
       const messages = await messagesRes.json();
-      const assistantMessage = messages.data.find(msg => msg.role === "assistant");
+      console.log("Messages from thread:", messages);
+
+      const assistantMessage = messages.data?.find(msg => msg.role === "assistant");
+
+      if (!assistantMessage) {
+        throw new Error("No assistant message found in thread.");
+      }
 
       let suggestions;
       try {
