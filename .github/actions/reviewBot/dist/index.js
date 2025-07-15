@@ -34499,99 +34499,11 @@ module.exports = /*#__PURE__*/JSON.parse('[[[0,44],"disallowed_STD3_valid"],[[45
 /************************************************************************/
 var __webpack_exports__ = {};
 /* === index.js === */
+
 const core = __nccwpck_require__(5516);
 const github = __nccwpck_require__(28);
 const fetch = __nccwpck_require__(1009);
 const parseDiff = __nccwpck_require__(8737);
-
-const OPENAI_API_URL = "https://api.openai.com/v1";
-const ASSISTANT_ID = core.getInput("assistant-id");
-
-async function createThread(openaiApiKey) {
-  const res = await fetch(`${OPENAI_API_URL}/threads`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${openaiApiKey}`,
-      "Content-Type": "application/json",
-    },
-  });
-  const data = await res.json();
-  return data.id;
-}
-
-async function addMessageToThread(openaiApiKey, threadId, content) {
-  await fetch(`${OPENAI_API_URL}/threads/${threadId}/messages`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${openaiApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      role: "user",
-      content,
-    }),
-  });
-}
-
-async function runAssistantWithPolling(openaiApiKey, threadId) {
-  const runRes = await fetch(`${OPENAI_API_URL}/threads/${threadId}/runs`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${openaiApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ assistant_id: ASSISTANT_ID }),
-  });
-
-  const run = await runRes.json();
-
-  const runId = run.id;
-  const maxAttempts = 30;
-  let attempts = 0;
-
-  while (attempts < maxAttempts) {
-    const res = await fetch(`${OPENAI_API_URL}/threads/${threadId}/runs/${runId}`, {
-      headers: {
-        Authorization: `Bearer ${openaiApiKey}`,
-      },
-    });
-
-    const data = await res.json();
-    const status = data.status;
-
-    console.log(`Run status: ${status}`);
-
-    if (status === "completed") {
-      return data;
-    }
-
-    if (["failed", "cancelled", "expired"].includes(status)) {
-      throw new Error(`Run failed with status: ${status}`);
-    }
-
-    if (status === "requires_action") {
-      throw new Error(
-        "The assistant requires action (likely a tool call). This script doesn't support tool use."
-      );
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    attempts++;
-  }
-
-  throw new Error("Timed out waiting for assistant run to complete.");
-}
-
-
-async function getMessages(openaiApiKey, threadId) {
-  const res = await fetch(`${OPENAI_API_URL}/threads/${threadId}/messages`, {
-    headers: {
-      Authorization: `Bearer ${openaiApiKey}`,
-    },
-  });
-  const data = await res.json();
-  return data.data;
-}
 
 async function run() {
   try {
@@ -34612,25 +34524,60 @@ async function run() {
       if (!file.patch || !file.filename.endsWith(".js")) continue;
 
       const diff = file.patch;
-
-      // Prepare thread
-      const threadId = await createThread(openaiApiKey);
-
-      await addMessageToThread(
-        openaiApiKey,
-        threadId,
-        `Please review the following JavaScript diff from the file: ${file.filename}\n\n${diff}`
+      const parsed = parseDiff(
+        `diff --git a/${file.filename} b/${file.filename}\n${diff}`
       );
 
-      await runAssistantWithPolling(openaiApiKey, threadId);
-      const messages = await getMessages(openaiApiKey, threadId);
+      const response = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${openaiApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-4o",
+            messages: [
+              {
+                role: "system",
+                content: `You are a senior software engineer reviewing a GitHub pull request.
+You will receive a code diff. If there are any suggestions for improvements (e.g., code readability, performance, style, security), return them in this JSON format:
 
+[
+  {
+    "line": <lineNumberInNewFile>,
+    "comment": "Suggestion comment here."
+  }
+]
+If no suggestions, return [].`,
+              },
+              {
+                role: "user",
+                content: `Here is the diff for ${file.filename}:\n\n${diff}`,
+              },
+            ],
+            temperature: 0.2,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `OpenAI API request failed: ${response.status} ${response.statusText}\n${errorText}`
+        );
+      }
+
+      const result = await response.json();
       let suggestions;
       try {
-        const lastMessage = messages.find((msg) => msg.role === "assistant");
-        suggestions = JSON.parse(lastMessage.content[0].text.value);
+        suggestions = JSON.parse(result.choices[0].message.content);
       } catch (err) {
-        console.error("Failed to parse assistant response.");
+        console.error(
+          "Failed to parse AI response",
+          result.choices[0].message.content
+        );
         continue;
       }
 
