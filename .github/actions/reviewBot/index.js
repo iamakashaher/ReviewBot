@@ -78,7 +78,11 @@ async function run() {
 
       // 5. Get messages from thread
       const messagesRes = await fetch(`${OPENAI_API_URL}/threads/${threadId}/messages`, {
-        headers: { Authorization: `Bearer ${openaiApiKey}` },
+        headers: {
+          Authorization: `Bearer ${openaiApiKey}`,
+          "Content-Type": "application/json",
+          "OpenAI-Beta": "assistants=v2"
+        },
       });
 
       if (!messagesRes.ok) {
