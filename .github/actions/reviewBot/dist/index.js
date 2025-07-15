@@ -34507,7 +34507,7 @@ const parseDiff = __nccwpck_require__(8737);
 
 async function run() {
   try {
-    const token = core.getInput("github-token");
+    const token = core.getInput("git-token");
     const openaiApiKey = core.getInput("openai-api-key");
 
     const octokit = github.getOctokit(token);
