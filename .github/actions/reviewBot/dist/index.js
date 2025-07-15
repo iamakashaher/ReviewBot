@@ -34532,11 +34532,25 @@ async function run() {
         headers: {
           Authorization: `Bearer ${openaiApiKey}`,
           "Content-Type": "application/json",
+          "OpenAI-Beta": "assistants=v2",
         },
       });
 
+      if (!threadRes.ok) {
+        const errorText = await threadRes.text();
+        throw new Error(
+          `Failed to create thread: ${threadRes.status} ${threadRes.statusText}\n${errorText}`
+        );
+      }
+
       const thread = await threadRes.json();
       const threadId = thread.id;
+
+      if (!threadId) {
+        throw new Error(
+          "Thread ID is undefined. Thread creation might have failed."
+        );
+      }
 
       // 2. Add message to thread
       await fetch(`${OPENAI_API_URL}/threads/${threadId}/messages`, {
@@ -34544,6 +34558,7 @@ async function run() {
         headers: {
           Authorization: `Bearer ${openaiApiKey}`,
           "Content-Type": "application/json",
+          "OpenAI-Beta": "assistants=v2",
         },
         body: JSON.stringify({
           role: "user",
@@ -34557,6 +34572,7 @@ async function run() {
         headers: {
           Authorization: `Bearer ${openaiApiKey}`,
           "Content-Type": "application/json",
+          "OpenAI-Beta": "assistants=v2",
         },
         body: JSON.stringify({
           assistant_id: assistantId,
@@ -34569,31 +34585,44 @@ async function run() {
       let status = "queued";
       while (status === "queued" || status === "in_progress") {
         await new Promise((r) => setTimeout(r, 1000));
-        const runStatusRes = await fetch(`${OPENAI_API_URL}/threads/${threadId}/runs/${run.id}`, {
-          headers: { Authorization: `Bearer ${openaiApiKey}` },
-        });
+        const runStatusRes = await fetch(
+          `${OPENAI_API_URL}/threads/${threadId}/runs/${run.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${openaiApiKey}`,
+              "OpenAI-Beta": "assistants=v2",
+            },
+          }
+        );
         const runStatus = await runStatusRes.json();
         status = runStatus.status;
       }
 
       // 5. Get messages from thread
-      const messagesRes = await fetch(`${OPENAI_API_URL}/threads/${threadId}/messages`, {
-        headers: {
-          Authorization: `Bearer ${openaiApiKey}`,
-          "Content-Type": "application/json",
-          "OpenAI-Beta": "assistants=v2"
-        },
-      });
+      const messagesRes = await fetch(
+        `${OPENAI_API_URL}/threads/${threadId}/messages`,
+        {
+          headers: {
+            Authorization: `Bearer ${openaiApiKey}`,
+            "Content-Type": "application/json",
+            "OpenAI-Beta": "assistants=v2",
+          },
+        }
+      );
 
       if (!messagesRes.ok) {
         const errorText = await messagesRes.text();
-        throw new Error(`Failed to fetch messages: ${messagesRes.status} ${messagesRes.statusText}\n${errorText}`);
+        throw new Error(
+          `Failed to fetch messages: ${messagesRes.status} ${messagesRes.statusText}\n${errorText}`
+        );
       }
 
       const messages = await messagesRes.json();
       console.log("Messages from thread:", messages);
 
-      const assistantMessage = messages.data?.find(msg => msg.role === "assistant");
+      const assistantMessage = messages.data?.find(
+        (msg) => msg.role === "assistant"
+      );
 
       if (!assistantMessage) {
         throw new Error("No assistant message found in thread.");
@@ -34603,7 +34632,10 @@ async function run() {
       try {
         suggestions = JSON.parse(assistantMessage.content[0].text.value);
       } catch (err) {
-        console.error("Failed to parse AI response", assistantMessage.content[0].text.value);
+        console.error(
+          "Failed to parse AI response",
+          assistantMessage.content[0].text.value
+        );
         continue;
       }
 
