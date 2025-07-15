@@ -70,7 +70,7 @@ const fetch = __nccwpck_require__(994);
 
 async function run() {
   try {
-    const token = core.getInput("git-token");
+    const token = core.getInput("github-token");
     const openaiApiKey = core.getInput("openai-api-key");
 
     const octokit = github.getOctokit(token);
