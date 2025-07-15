@@ -14,7 +14,7 @@ jobs:
       - name: Comment on PR
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GIT_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             github.rest.issues.createComment({
               issue_number: context.payload.pull_request.number,
@@ -26,7 +26,7 @@ jobs:
       - name: Add labels
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GIT_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             github.rest.issues.addLabels({
               issue_number: context.payload.pull_request.number,
@@ -38,5 +38,5 @@ jobs:
       - name: Run AI PR Reviewer
         uses: ./.github/actions/reviewBot
         with:
-          github-token: ${{ secrets.GIT_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
