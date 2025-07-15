@@ -5,6 +5,8 @@ inputs:
     required: true
   openai-api-key:
     required: true
+  assistant-id:
+    required: true
 runs:
   using: 'node16'
   main: 'dist/index.js'
