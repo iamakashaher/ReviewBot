@@ -8,7 +8,6 @@ jobs:
   pr_commenter:
     runs-on: ubuntu-latest
     steps:
-
       - name: Comment on PR
         uses: actions/github-script@v7
         with:

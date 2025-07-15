@@ -1,14 +1,15 @@
 {
-  "name": "ai-pr-reviewer",
+  "name": "review-bot",
   "version": "1.0.0",
-  "description": "GitHub Action to review PR code using OpenAI API",
+  "description": "GitHub PR reviewer bot using OpenAI API",
   "main": "index.js",
+  "scripts": {
+    "build": "ncc build index.js -o dist"
+  },
   "dependencies": {
     "@actions/core": "^1.10.0",
     "@actions/github": "^5.1.1",
-    "node-fetch": "^2.6.7"
-  },
-  "devDependencies": {
-    "@vercel/ncc": "^0.38.3"
+    "node-fetch": "^2.6.9",
+    "parse-diff": "^0.8.0"
   }
 }
