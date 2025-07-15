@@ -33,35 +33,45 @@ async function addMessageToThread(openaiApiKey, threadId, content) {
   });
 }
 
-async function runAssistant(openaiApiKey, threadId) {
+async function runAssistantWithPolling(openaiApiKey, threadId) {
   const runRes = await fetch(`${OPENAI_API_URL}/threads/${threadId}/runs`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${openaiApiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      assistant_id: ASSISTANT_ID,
-    }),
+    body: JSON.stringify({ assistant_id: ASSISTANT_ID }),
   });
 
   const run = await runRes.json();
 
-  // Poll for completion
-  while (true) {
+  const maxAttempts = 30;
+  let attempts = 0;
+
+  while (attempts < maxAttempts) {
     const statusRes = await fetch(`${OPENAI_API_URL}/threads/${threadId}/runs/${run.id}`, {
       headers: {
         Authorization: `Bearer ${openaiApiKey}`,
       },
     });
+
     const runStatus = await statusRes.json();
-    if (runStatus.status === "completed") break;
-    if (runStatus.status === "failed" || runStatus.status === "cancelled") {
+
+    if (runStatus.status === "completed") {
+      return runStatus;
+    }
+
+    if (["failed", "cancelled", "expired"].includes(runStatus.status)) {
       throw new Error(`Assistant run failed with status: ${runStatus.status}`);
     }
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    await new Promise((resolve) => setTimeout(resolve, 3000)); // 3s delay
+    attempts++;
   }
+
+  throw new Error("Timed out waiting for assistant run to complete.");
 }
+
 
 async function getMessages(openaiApiKey, threadId) {
   const res = await fetch(`${OPENAI_API_URL}/threads/${threadId}/messages`, {
@@ -103,7 +113,7 @@ async function run() {
         `Please review the following JavaScript diff from the file: ${file.filename}\n\n${diff}`
       );
 
-      await runAssistant(openaiApiKey, threadId);
+      await runAssistantWithPolling(openaiApiKey, threadId);
       const messages = await getMessages(openaiApiKey, threadId);
 
       let suggestions;
